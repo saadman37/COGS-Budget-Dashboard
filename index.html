@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>COGS vs Budget Dashboard</title>
-    <!-- Bootstrap CSS for layout and styling -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Chart.js for graphs -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 </head>
@@ -17,98 +15,162 @@
     
     <div class="card shadow-sm mb-4">
         <div class="card-body">
-            <!-- Dropdown for future expansion (Clinker, Slag, etc.) -->
             <div class="mb-3 w-25">
-                <select id="itemSelector" class="form-select">
-                    <option value="clinker">Clinker</option>
-                    <option value="slag">Slag</option>
+                <label for="itemSelector" class="form-label fw-bold">Select Material:</label>
+                <select id="itemSelector" class="form-select" onchange="loadDataFor(this.value)">
+                    <option value="Clinker">Clinker</option>
+                    <option value="Slag">Slag</option>
+                    <option value="Grinding Aid">Grinding Aid</option>
+                    <option value="Gypsum">Gypsum</option>
+                    <option value="Fly Ash">Fly Ash</option>
+                    <option value="Limestone">Limestone</option>
                 </select>
             </div>
 
-            <!-- Chart Container -->
             <div style="height: 400px; position: relative;">
                 <canvas id="cogsVsBudgetChart"></canvas>
             </div>
+            
+            <div id="errorMessage" class="alert alert-danger mt-3 d-none"></div>
         </div>
     </div>
 </div>
 
 <script>
-    // 1. Exact Data from "COGS report ARL _FP.xlsx" for Clinker
+    let myChart = null;
     const months = ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-    
-    const clinkerCOGS = [7682.92, 7803.36, 7552.92, 7393.2, 7162.04, 6950.84, 7136.23, 7110.14, 7074.9, 7765.07, 8700.44, 8445.00];
-    const clinkerBudget = [6934.19, 7534.22, 7534.22, 7534.22, 7718.72, 7718.72, 7718.72, 7841.72, 7841.72, 7472.72, 7472.72, 7472.72];
 
-    const ctx = document.getElementById('cogsVsBudgetChart').getContext('2d');
-    
-    // 2. Chart Configuration matching your image
-    const myChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: months,
-            datasets: [
-                {
-                    label: 'COGS 2025-26',
-                    data: clinkerCOGS,
-                    borderColor: '#4285F4', // Match the blue from image
-                    backgroundColor: '#4285F4',
-                    borderWidth: 2,
-                    pointRadius: 0, // Removes the dots on the line
-                    pointHoverRadius: 6,
-                    tension: 0, // Makes the lines completely straight
-                    fill: false
-                },
-                {
-                    label: 'Budget 2025-26',
-                    data: clinkerBudget,
-                    borderColor: '#EA4335', // Match the red from image
-                    backgroundColor: '#EA4335',
-                    borderWidth: 2,
-                    pointRadius: 0, 
-                    pointHoverRadius: 6,
-                    tension: 0, 
-                    fill: false
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'COGS 2025-26 and Budget 2025-26',
-                    font: { size: 16, weight: 'normal', color: '#666' }
-                },
-                legend: {
-                    position: 'right', // Moves the legend to the right side
-                    labels: {
-                        usePointStyle: true,
-                        boxWidth: 8
+    // 1. Initialize the empty chart format
+    function initChart() {
+        const ctx = document.getElementById('cogsVsBudgetChart').getContext('2d');
+        myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: months,
+                datasets: [
+                    {
+                        label: 'COGS 2025-26',
+                        data: [],
+                        borderColor: '#4285F4',
+                        backgroundColor: '#4285F4',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        tension: 0,
+                        fill: false
+                    },
+                    {
+                        label: 'Budget 2025-26',
+                        data: [],
+                        borderColor: '#EA4335',
+                        backgroundColor: '#EA4335',
+                        borderWidth: 2,
+                        pointRadius: 0, 
+                        pointHoverRadius: 6,
+                        tension: 0, 
+                        fill: false
                     }
-                }
+                ]
             },
-            scales: {
-                y: {
-                    min: 0,
-                    max: 10000,
-                    ticks: {
-                        stepSize: 1000 // Sets the 0, 1000, 2000 intervals
-                    }
-                },
-                x: {
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
                     title: {
                         display: true,
-                        text: 'Clinker'
+                        text: 'COGS 2025-26 and Budget 2025-26',
+                        font: { size: 16, weight: 'normal', color: '#666' }
                     },
-                    grid: {
-                        display: false // Removes vertical lines behind the chart
+                    legend: {
+                        position: 'right',
+                        labels: { usePointStyle: true, boxWidth: 8 }
+                    }
+                },
+                scales: {
+                    y: {
+                        min: 0, // Starts at 0
+                        suggestedMax: 10000 // Adjusts upwards automatically if data is higher
+                    },
+                    x: {
+                        title: { display: true, text: 'Clinker' }, // Default text, will update dynamically
+                        grid: { display: false }
                     }
                 }
             }
-        }
-    });
+        });
+    }
+
+    // 2. Fetch CSV and parse data for the selected item
+    function loadDataFor(itemName) {
+        // Ensure this matches EXACTLY the file name you uploaded into the 'data' folder
+        const csvFilePath = "data/COGS report ARL _FP.xlsx - ACCL.csv";
+
+        Papa.parse(csvFilePath, {
+            download: true,
+            complete: function(results) {
+                const data = results.data;
+                let foundRow = -1;
+                let foundCol = -1;
+
+                // Step A: Search the entire CSV grid to find the material name (e.g., "Slag")
+                for (let r = 0; r < data.length; r++) {
+                    for (let c = 0; c < data[r].length; c++) {
+                        if (data[r][c] && data[r][c].toString().trim().toLowerCase() === itemName.toLowerCase()) {
+                            foundRow = r;
+                            foundCol = c;
+                            break;
+                        }
+                    }
+                    if (foundRow !== -1) break;
+                }
+
+                // Show error if material isn't found in the CSV
+                const errorDiv = document.getElementById('errorMessage');
+                if (foundRow === -1) {
+                    errorDiv.textContent = `Could not find "${itemName}" in the CSV file. Check spelling.`;
+                    errorDiv.classList.remove('d-none');
+                    return;
+                } else {
+                    errorDiv.classList.add('d-none');
+                }
+
+                let cogsData = [];
+                let budgetData = [];
+
+                // Step B: Scan the rows directly below the found item to grab the COGS and Budget numbers
+                // We check up to 15 rows below the header to find the correct years
+                for (let r = foundRow + 1; r < Math.min(foundRow + 15, data.length); r++) {
+                    let rowLabel = data[r][foundCol] ? data[r][foundCol].toString().trim() : "";
+                    
+                    if (rowLabel === "COGS 2025-26") {
+                        // Extract 12 months of data to the right of the label and convert to numbers
+                        cogsData = data[r].slice(foundCol + 1, foundCol + 13).map(val => parseFloat(val.toString().replace(/,/g, '')) || 0);
+                    }
+                    if (rowLabel === "Budget 2025-26") {
+                        budgetData = data[r].slice(foundCol + 1, foundCol + 13).map(val => parseFloat(val.toString().replace(/,/g, '')) || 0);
+                    }
+                }
+
+                // Step C: Push the new data into the chart and update
+                myChart.data.datasets[0].data = cogsData;
+                myChart.data.datasets[1].data = budgetData;
+                myChart.options.scales.x.title.text = itemName; // Updates the bottom label
+                myChart.update();
+            },
+            error: function(error) {
+                const errorDiv = document.getElementById('errorMessage');
+                errorDiv.textContent = "Error loading CSV file. Make sure the file is uploaded to the 'data/' folder correctly.";
+                errorDiv.classList.remove('d-none');
+            }
+        });
+    }
+
+    // 3. Run these functions when the page loads
+    window.onload = function() {
+        initChart();
+        // Automatically load the first item in the dropdown
+        loadDataFor(document.getElementById('itemSelector').value);
+    };
 </script>
 
 </body>
