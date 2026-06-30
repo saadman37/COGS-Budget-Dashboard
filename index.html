@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COGS vs Budget Dashboard</title>
+    <!-- Bootstrap CSS for layout and styling -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Chart.js for graphs and PapaParse for CSV reading -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+</head>
+<body class="bg-light">
+
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Financial Dashboard</h2>
+    
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">COGS 2025-26 vs Budget (Current Year)</h5>
+        </div>
+        <div class="card-body">
+            <!-- This is where the chart will appear -->
+            <canvas id="cogsVsBudgetChart" height="100"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. We are setting up dummy data here to test the chart first.
+    // Once this works, we will link it to your 'data/COGS report ARL _FP.xlsx - ACCL.csv'
+    
+    const labels = ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const cogsData = [3326.2, 3140.09, 3296.82, 3137.84, 3096.35, 3156.16]; 
+    const budgetData = [3032.32, 3032.32, 3032.32, 3032.32, 3032.32, 3032.32];
+
+    const ctx = document.getElementById('cogsVsBudgetChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'COGS 2025-26',
+                    data: cogsData,
+                    backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Budget',
+                    data: budgetData,
+                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: { beginAtZero: false }
+            }
+        }
+    });
+</script>
+
+</body>
+</html>
